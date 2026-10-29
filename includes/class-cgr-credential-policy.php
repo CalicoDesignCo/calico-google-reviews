@@ -2,6 +2,19 @@
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
 final class CGR_Credential_Policy {
+	/** This identity controls protection settings, independently of notification recipients. */
+	const OWNER_EMAIL = 'peteaugusta@gmail.com';
+
+	public static function can_manage() {
+		$user = wp_get_current_user();
+		return current_user_can( 'manage_options' ) && $user->exists() && 0 === strcasecmp( trim( $user->user_email ), self::OWNER_EMAIL );
+	}
+
+	private static function authorize_owner() {
+		if ( ! self::can_manage() ) {
+			wp_die( esc_html__( 'Only the designated protection owner with administrator access can manage credential protection.', 'calico-google-reviews' ), '', array( 'response' => 403 ) );
+		}
+	}
 	public static function settings() {
 		return wp_parse_args( get_option( 'cgr_credential_policy', array() ), array( 'enabled' => false, 'days' => 90, 'expires' => 0, 'email' => '', 'paused' => false, 'per_pull' => 100, 'monthly_pulls' => 5, 'monthly_reviews' => 500, 'notice' => '' ) );
 	}
@@ -11,9 +24,11 @@ final class CGR_Credential_Policy {
 		add_action( 'cgr_location_sync', array( __CLASS__, 'check' ), 1 );
 		add_action( 'admin_init', array( __CLASS__, 'check' ) );
 	}
-	public function menu() { add_submenu_page( 'cgr-reviews', 'Credential Protection', 'Credential Protection', 'manage_options', 'cgr-protection', array( $this, 'page' ) ); }
+	public function menu() {
+		if ( self::can_manage() ) { add_submenu_page( 'cgr-reviews', 'Credential Protection', 'Credential Protection', 'manage_options', 'cgr-protection', array( $this, 'page' ) ); }
+	}
 	public function save() {
-		if ( ! current_user_can( 'manage_options' ) ) { wp_die( 'Administrator access required.' ); }
+		self::authorize_owner();
 		check_admin_referer( 'cgr_save_policy' );
 		self::check();
 		$old = self::settings();
@@ -83,12 +98,12 @@ final class CGR_Credential_Policy {
 		return isset( $usage['month'] ) && gmdate( 'Y-m' ) === $usage['month'] ? $usage : array( 'month' => gmdate( 'Y-m' ), 'pulls' => 0, 'reviews' => 0, 'last_request' => 0 );
 	}
 	public function page() {
-		if ( ! current_user_can( 'manage_options' ) ) { wp_die( 'Administrator access required.' ); }
+		self::authorize_owner();
 		$s = self::settings(); $usage = self::usage();
 		?>
 		<div class="wrap"><h1>Outscraper Credential Protection</h1>
 		<p>Applies to all locations and both scheduled and manual pulls. Expiration erases saved Outscraper credentials and stops pulls; existing reviews remain available. Renewing after expiration also requires entering the key again on Sources.</p>
-		<p>This local protection can be changed by anyone with administrator or server access. Backups may retain older keys.</p>
+		<p>Only the WordPress administrator account with email <?php echo esc_html( self::OWNER_EMAIL ); ?> can change or renew this policy. Notification recipients do not receive management access. People with access to change account emails, plugin files, or the database can still bypass local restrictions. Backups may retain older keys.</p>
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 		<?php wp_nonce_field( 'cgr_save_policy' ); ?><input type="hidden" name="action" value="cgr_save_policy">
 		<table class="form-table"><tr><th>Enable expiration and usage limits</th><td><input type="checkbox" name="enabled" value="1" <?php checked( $s['enabled'] ); ?>></td></tr>
