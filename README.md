@@ -1,6 +1,6 @@
 # Calico Google Reviews
 
-Version 1.12.0. A WordPress plugin for collecting, importing, managing and displaying Google reviews with Elementor widgets and multiple location profiles.
+Version 1.12.1. A WordPress plugin for collecting, importing, managing and displaying Google reviews with Elementor widgets and multiple location profiles.
 
 ## Installation
 
@@ -15,6 +15,8 @@ Use Google Reviews > Sources to configure Google Places API, Outscraper API, and
 Elementor includes Calico Google Reviews for cards, masonry or carousel layouts, pagination, and custom card elements; Calico Review Summary independently displays review totals, average rating, stored five-star counts and review links.
 
 ## Credential protection
+
+Credential Protection can be viewed, saved, disabled or renewed only by the designated owner's WordPress account with administrator permissions. The notification recipient and WordPress Administration Email Address do not grant access to these controls. Account email changes, server access and database access can bypass this local restriction.
 
 Enable Google Reviews > Credential Protection to start a renewable 90-day Outscraper credential lease. Defaults are 100 requested reviews per pull, five pulls per UTC calendar month, and 500 requested reviews per UTC calendar month across all locations. Settings are inactive until explicitly enabled. Save with Refresh access checked to renew; ordinary saves do not extend the deadline. After expiration, renew and enter the key again on Sources. Stored reviews remain available.
 
