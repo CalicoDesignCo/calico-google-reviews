@@ -4,7 +4,7 @@ Tags: google reviews, places, testimonials
 Requires at least: 6.2
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.11.0
+Stable tag: 1.12.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -72,6 +72,10 @@ The plugin sends requests to these Google services when their corresponding mode
 Review displays include per-review source links where Google or an import supplies them.
 
 == Changelog ==
+
+= 1.12.0 =
+* Added native WordPress update checks for stable public GitHub releases, using the exact versioned plugin ZIP and cached metadata.
+* Added plugin details and Check again refresh support. Install this version manually once to enable future Dashboard updates; earlier versions have no updater.
 
 = 1.11.0 =
 * Added administrator-only Credential Protection with explicit enablement, renewable expiration, credential erasure, and a pause switch for all Outscraper locations.

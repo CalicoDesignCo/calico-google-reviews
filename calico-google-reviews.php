@@ -2,7 +2,9 @@
 /**
  * Plugin Name: Calico Google Reviews
  * Description: Collects, imports, manages, and displays Google reviews using Google Places API, Outscraper API, CSV, or manual entry.
- * Version: 1.11.0
+ * Version: 1.12.0
+ * Plugin URI: https://github.com/CalicoDesignCo/calico-google-reviews
+ * Update URI: https://github.com/CalicoDesignCo/calico-google-reviews
  * Author: Calico Design
  * Text Domain: calico-google-reviews
  * Requires at least: 6.2
@@ -14,10 +16,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'CGR_VERSION', '1.11.0' );
+define( 'CGR_VERSION', '1.12.0' );
 define( 'CGR_FILE', __FILE__ );
 define( 'CGR_PATH', plugin_dir_path( __FILE__ ) );
 define( 'CGR_URL', plugin_dir_url( __FILE__ ) );
+
+require_once CGR_PATH . 'includes/class-cgr-updater.php';
+CGR_Updater::register( __FILE__ );
 
 require_once CGR_PATH . 'includes/class-cgr-crypto.php';
 require_once CGR_PATH . 'includes/class-cgr-database.php';

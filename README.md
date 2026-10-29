@@ -1,12 +1,14 @@
 # Calico Google Reviews
 
-Version 1.11.0. A WordPress plugin for collecting, importing, managing and displaying Google reviews with Elementor widgets and multiple location profiles.
+Version 1.12.0. A WordPress plugin for collecting, importing, managing and displaying Google reviews with Elementor widgets and multiple location profiles.
 
 ## Installation
 
 Download the installable ZIP attached to the release, then use WordPress Plugins > Add Plugin > Upload Plugin. Requires WordPress 6.2 or later and PHP 7.4 or later.
 
 ## Configuration
+
+Version 1.12.0 adds native WordPress updates from stable public GitHub releases. Manually upload this version once if upgrading from 1.11.0 or earlier. Future releases appear through Dashboard > Updates > Check again. Automatic update installation remains under the administrator's control. Checks use cached public metadata with no GitHub token; unavailable or invalid metadata leaves the installed plugin usable.
 
 Use Google Reviews > Sources to configure Google Places API, Outscraper API, and location profiles. Manual entry and CSV import/export are also available. Full setup details and version history are in [readme.txt](readme.txt).
 
