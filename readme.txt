@@ -1,21 +1,22 @@
 === Calico Google Reviews ===
 Contributors: calicodesign
-Tags: google reviews, places, testimonials
+Tags: google reviews, testimonials
 Requires at least: 6.2
 Tested up to: 6.8
 Requires PHP: 7.4
-Stable tag: 1.12.1
+Stable tag: 1.14.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Collect, import, manage, back up, and display Google reviews from Google Places API, Outscraper API, CSV, or manual entry.
+Collect, import, manage, back up, and display Google reviews from Outscraper API, CSV, or manual entry.
 
 == Description ==
 
-Calico Google Reviews provides a dedicated review library and two API modes:
+Outscraper imports run in the background. The plugin submits with async=true, saves each location's request ID, and checks that same request about every minute using WordPress cron. Leave the page and return to Sources to see status, ID and import counts. Check saved request now retrieves results without starting another scrape. Existing review display continues during imports. Polling requires working WordPress cron/site traffic or a hosting cron job; provider result storage is temporary. Polling respects credential pause/expiration, but does not consume another scrape-budget reservation. If submission fails without an ID, the plugin stops instead of silently repeating a potentially billable scrape. Check provider Usage History before confirming Start a new request. Old timed-out requests from previous versions do not have saved IDs and are not automatically recovered.
+
+Calico Google Reviews provides a dedicated review library with Outscraper API:
 
 * Native multi-location profiles keep each business location's credentials, review feed, schedule, status, aggregate details, and review-request link separate.
-* Google Places API rolling collection checks Google's sample every seven days and retains newly exposed reviews. The initial response is limited to five reviews, making it useful for testing but not backlog collection.
 * Outscraper API full import retrieves complete review histories using a customer-supplied provider key and Place ID. Outscraper offers 500 free credits per month; one pulled review uses one credit, so most businesses will remain within the free allowance.
 * Manual entry and CSV upload provide an API-free fallback with duplicate prevention.
 * Export All Reviews downloads a complete CSV backup designed to re-import without losing identifiers, sources, dates, reviewer details, replies, photos, or source links.
@@ -24,7 +25,7 @@ Use the shortcode:
 
 `[calico_google_reviews location="primary" limit="6" template="classic" columns="3" columns_tablet="2" columns_mobile="1" show_summary="yes"]`
 
-Templates are `classic`, `minimal`, `quote`, and `spotlight`. The optional `source` attribute accepts `all`, `places`, `outscraper`, `csv`, or `manual`. Use the location ID shown by the location profile, or `location="all"` for a combined feed.
+Templates are `classic`, `minimal`, `quote`, and `spotlight`. The optional `source` attribute accepts `all`, `outscraper`, `csv`, or `manual`. Use the location ID shown by the location profile, or `location="all"` for a combined feed.
 
 When Elementor is active, use the Calico Google Reviews widget for responsive columns and visual controls for every review element.
 
@@ -35,16 +36,6 @@ The Elementor widget can paginate stored reviews above or below the cards, or ap
 Carousel mode displays up to 30 reviews in a single sliding row. The responsive column settings control how many slides are visible, with optional dots above or below, optional side arrows, touch swiping, mouse dragging, and detailed navigation state and positioning controls.
 
 Global display settings can limit front-end output by star rating, hide reviews without written text, and collapse long reviews behind a configurable Read more control. Elementor can independently show or hide the business name and aggregate rating area, use equal-height or masonry cards, and build a custom card by dragging Avatar, Name, Date, Stars, Review, Response from Business, and View on Google elements into any order.
-
-== Google Places API setup ==
-
-1. In Google Cloud, enable Google Places API (New) for a billing-enabled project.
-2. Create and appropriately restrict an API key.
-3. In WordPress, open Google Reviews > Sources.
-4. Add or select a location, enter its Place ID and API key, and save.
-5. Use Test Place connection, then add the shortcode to a page.
-
-Google Places API returns a small sample. Rolling collection may accumulate newly exposed reviews over time, but it does not guarantee a complete history.
 
 == Outscraper API setup ==
 
@@ -64,14 +55,23 @@ API keys are encrypted using keys derived from the WordPress authentication salt
 
 All imported and collected reviews are stored in the WordPress database. API credentials are encrypted. Uninstalling the plugin removes its settings, credentials, scheduled events, and review table.
 
-The plugin sends requests to these Google services when their corresponding mode or administrative action is used:
+The plugin sends requests to Outscraper when imports or scheduled pulls run:
 
-* places.googleapis.com
 * api.outscraper.com
 
 Review displays include per-review source links where Google or an import supplies them.
 
 == Changelog ==
+
+= 1.14.0 =
+* Submit Outscraper jobs asynchronously, save request IDs per location and retrieve completed results through bounded background checks.
+* Keep IDs through download failures and retries, prevent concurrent/repeated scrapes, and expose status/check/new-request controls in Sources.
+* Preserve credential expiration, pause, monthly scrape budgets, duplicate prevention, aggregate metadata and multi-location isolation.
+* Retain the Google Places API removal from the local 1.13.0 update.
+
+= 1.13.0 =
+* Removed the retired sample-review API connection, credentials, collection jobs, controls and setup instructions. Outscraper API remains supported.
+* Existing imported reviews, legacy identifiers, aggregate details and review-request links are preserved.
 
 = 1.12.1 =
 * Restricted Credential Protection visibility, saving and renewal to the designated owner's administrator account. Notification email overrides do not grant management access.
@@ -108,7 +108,7 @@ Review displays include per-review source links where Google or an import suppli
 = 1.8.0 =
 * Added permanent Delete ALL Reviews with an export-first warning and direct backup link.
 * Added duplicate scanning and cleanup that keeps the newest, most complete review.
-* Prevented Google Places API, Outscraper API, CSV, and manual imports from storing duplicate reviews.
+* Prevented Outscraper API, CSV, and manual imports from storing duplicate reviews.
 * Added left, center, and right Elementor pagination alignment.
 * Added carousel automatic scrolling, selectable timing, and a shared slides-per-scroll control for autoplay and arrows.
 * Fixed Read More and other interactive review-card controls inside carousels.
@@ -124,13 +124,10 @@ Review displays include per-review source links where Google or an import suppli
 * Added Elementor pagination with top or bottom placement, page numbers, previous/next labels, and complete style controls.
 * Added external Elementor Button integration for loading configurable batches of additional reviews without a page refresh.
 * Added automatic Place ID review-request links with an official-link override, Copy Link, Test Link, and setup instructions.
-* Updated user-facing source names to Google Places API and Outscraper API.
 * Added Outscraper's 500-free-credit monthly guidance and updated synchronization warnings.
 
 = 1.5.0 =
 * Added Export All Reviews with a lossless CSV format that can be re-imported without duplicates.
-* Changed Google Places API rolling collection from every five minutes to every seven days.
-* Clarified the five-review Google Places API limit and the full-history Outscraper API option.
 * Restricted Outscraper API setup to Place IDs and removed URL-related guidance.
 * Removed the Business Profile OAuth connection, synchronization, settings, and instructions.
 
@@ -159,7 +156,6 @@ Review displays include per-review source links where Google or an import suppli
 = 1.1.0 =
 * Added a dedicated Google Reviews admin area with searchable, filterable, paginated review management and bulk deletion.
 * Added manual entry and validated CSV import with duplicate prevention.
-* Added five-minute Google Places API rolling collection and Outscraper API full-history import with encrypted credentials.
 * Added an Elementor widget with responsive columns, element-level styling, and Classic Cards, Minimal, Quote, and Spotlight templates.
 * Added source setup instructions and a unified shortcode/Elementor renderer.
 
