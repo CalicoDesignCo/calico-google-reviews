@@ -449,6 +449,6 @@ final class CGR_Frontend {
 	}
 
 	private function initial( $name ) { $name = trim( wp_strip_all_tags( $name ) ); return '' === $name ? '?' : ( function_exists( 'mb_substr' ) ? mb_strtoupper( mb_substr( $name, 0, 1 ) ) : strtoupper( substr( $name, 0, 1 ) ) ); }
-	private function default_source( $mode ) { return 'place' === $mode ? 'places' : ( 'outscraper' === $mode ? 'outscraper' : 'all' ); }
+	private function default_source( $mode ) { return 'outscraper' === $mode ? 'outscraper' : 'all'; }
 	private function status( $message ) { return current_user_can( 'manage_options' ) ? '<p class="cgr-status-message">' . esc_html( $message ) . '</p>' : ''; }
 }

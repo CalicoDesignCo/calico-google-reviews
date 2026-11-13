@@ -37,6 +37,8 @@ final class CGR_Plugin {
 
 		new CGR_Admin( $this->database, $this->api, $this->sync, $this->importer );
 		new CGR_Credential_Policy();
+		$jobs = new CGR_Outscraper_Jobs( $this->database, $this->api );
+		add_action( CGR_Outscraper_Jobs::HOOK, array( $jobs, 'poll' ) );
 		$frontend = new CGR_Frontend( $this->database, $this->api );
 
 		add_action( 'cgr_location_sync', array( $this->sync, 'run_due_location_syncs' ) );
@@ -52,7 +54,7 @@ final class CGR_Plugin {
 		$database->install();
 		self::remove_legacy_connection_settings();
 		$api = new CGR_Google_API();
-		$api->get_locations();
+		$api->retire_sample_connection();
 
 		if ( ! wp_next_scheduled( 'cgr_daily_cleanup' ) ) {
 			wp_schedule_event( time() + ( 2 * HOUR_IN_SECONDS ), 'daily', 'cgr_daily_cleanup' );
@@ -66,6 +68,8 @@ final class CGR_Plugin {
 	}
 
 	public static function deactivate() {
+		$api = new CGR_Google_API();
+		foreach ( $api->get_locations() as $id => $location ) { wp_clear_scheduled_hook( CGR_Outscraper_Jobs::HOOK, array( $id ) ); }
 		wp_clear_scheduled_hook( 'cgr_daily_cleanup' );
 		wp_clear_scheduled_hook( 'cgr_five_minute_collection' );
 		wp_clear_scheduled_hook( 'cgr_weekly_collection' );
@@ -87,12 +91,14 @@ final class CGR_Plugin {
 	}
 
 	public function maybe_upgrade() {
+		$jobs = new CGR_Outscraper_Jobs( $this->database, $this->api );
+		$jobs->resume();
 		if ( CGR_VERSION !== get_option( 'cgr_db_version' ) ) {
 			$this->database->install();
 			self::remove_legacy_connection_settings();
 			wp_clear_scheduled_hook( 'cgr_daily_sync' );
 			wp_clear_scheduled_hook( 'cgr_five_minute_collection' );
-			$this->api->get_locations();
+			$this->api->retire_sample_connection();
 		}
 		wp_clear_scheduled_hook( 'cgr_weekly_collection' );
 		wp_clear_scheduled_hook( 'cgr_outscraper_sync' );
@@ -105,7 +111,7 @@ final class CGR_Plugin {
 			$settings = array();
 		}
 		if ( isset( $settings['mode'] ) && 'business' === $settings['mode'] ) {
-			$settings['mode'] = 'place';
+			$settings['mode'] = 'all';
 		}
 		foreach ( array( 'oauth_client_id', 'oauth_client_secret_enc', 'location_name' ) as $legacy_key ) {
 			unset( $settings[ $legacy_key ] );

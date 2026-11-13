@@ -78,14 +78,30 @@ final class CGR_Importer {
 	}
 
 	public function import_outscraper( $location_id = '' ) {
+		$jobs = new CGR_Outscraper_Jobs( $this->database, $this->api );
+		return $jobs->run( $location_id, true );
+	}
+
+	public function import_outscraper_data( array $data, $location_id ) {
 		$location = $this->api->get_location_settings( $location_id );
-		$data = $this->api->fetch_outscraper_reviews( $location['id'] );
-		if ( is_wp_error( $data ) ) {
-			return $data;
-		}
+		// Result archives can add an outer array around each query's businesses.
+		$businesses = array();
+		$flatten = function ( $items ) use ( &$flatten, &$businesses ) {
+			foreach ( $items as $item ) {
+				if ( ! is_array( $item ) ) { continue; }
+				if ( isset( $item['reviews_data'] ) || isset( $item['place_id'] ) || isset( $item['name'] ) ) { $businesses[] = $item; }
+				else { $flatten( $item ); }
+			}
+		};
+		$flatten( $data );
+		if ( $data && ! $businesses ) { return new WP_Error( 'cgr_job_data', __( 'The completed result did not contain business review data.', 'calico-google-reviews' ) ); }
+		$data = $businesses;
 
 		$rows = array();
 		foreach ( $data as $business ) {
+			if ( isset( $business['place_id'] ) && $business['place_id'] !== $location['outscraper_query'] ) {
+				return new WP_Error( 'cgr_job_business', __( 'Outscraper returned a different Place ID. No reviews were imported.', 'calico-google-reviews' ) );
+			}
 			if ( isset( $business['reviews_data'] ) && is_array( $business['reviews_data'] ) ) {
 				$rows = array_merge( $rows, $business['reviews_data'] );
 			} elseif ( isset( $business['reviews'] ) && is_array( $business['reviews'] ) ) {
@@ -96,16 +112,19 @@ final class CGR_Importer {
 		$result = $this->import_rows( $rows, 'outscraper', false, $location['id'] );
 		if ( ! is_wp_error( $result ) ) {
 			$business = isset( $data[0] ) && is_array( $data[0] ) ? $data[0] : array();
+			$metadata = array(
+				'outscraper_last_sync' => current_time( 'mysql', true ),
+				'last_error' => '',
+			);
+			if ( $business ) { $metadata = array_merge( $metadata, array(
+				'location_title' => isset( $business['name'] ) ? sanitize_text_field( $business['name'] ) : $location['location_title'],
+				'location_maps_uri' => isset( $business['location_link'] ) ? esc_url_raw( $business['location_link'] ) : $location['location_maps_uri'],
+				'average_rating' => isset( $business['rating'] ) ? (float) $business['rating'] : $location['average_rating'],
+				'total_reviews' => isset( $business['reviews'] ) && is_numeric( $business['reviews'] ) ? absint( $business['reviews'] ) : $location['total_reviews'],
+			) ); }
 			$this->api->update_location(
 				$location['id'],
-				array(
-					'outscraper_last_sync' => current_time( 'mysql', true ),
-					'location_title'       => isset( $business['name'] ) ? sanitize_text_field( $business['name'] ) : '',
-					'location_maps_uri'    => isset( $business['location_link'] ) ? esc_url_raw( $business['location_link'] ) : '',
-					'average_rating'       => isset( $business['rating'] ) ? (float) $business['rating'] : '',
-					'total_reviews'        => isset( $business['reviews'] ) ? absint( $business['reviews'] ) : count( $rows ),
-					'last_error'           => '',
-				)
+				$metadata
 			);
 		}
 		return $result;

@@ -70,11 +70,17 @@ final class CGR_Credential_Policy {
 			delete_option( 'cgr_policy_mail_lock' );
 		}
 	}
-	public static function reserve( $requested ) {
+	public static function can_request() {
 		self::check();
 		$s = self::settings();
 		if ( $s['enabled'] && ( ! $s['expires'] || time() >= $s['expires'] ) ) { return new WP_Error( 'cgr_expired', 'Outscraper access expired. Renew access and re-enter the API key.' ); }
 		if ( $s['paused'] ) { return new WP_Error( 'cgr_paused', 'Outscraper requests are paused by an administrator.' ); }
+		return true;
+	}
+	public static function reserve( $requested ) {
+		$permission = self::can_request();
+		if ( is_wp_error( $permission ) ) { return $permission; }
+		$s = self::settings();
 		if ( ! $s['enabled'] ) { return $requested; }
 		// Serialize budget reservations across manual and scheduled requests.
 		if ( ! add_option( 'cgr_policy_budget_lock', time(), '', false ) ) {

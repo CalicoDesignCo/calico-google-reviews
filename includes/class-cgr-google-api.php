@@ -9,16 +9,13 @@ final class CGR_Google_API {
 		return array(
 			'id'                     => '',
 			'location_name'          => '',
-			'mode'                   => 'place',
+			'mode'                   => 'all',
 			'place_id'               => '',
-			'maps_api_key_enc'       => '',
 			'location_title'         => '',
 			'location_maps_uri'      => '',
 			'average_rating'         => '',
 			'total_reviews'          => '',
-			'last_sync'              => '',
 			'last_error'             => '',
-			'rolling_collection'     => 'yes',
 			'review_request_url'     => '',
 			'outscraper_query'       => '',
 			'outscraper_api_key_enc' => '',
@@ -29,18 +26,33 @@ final class CGR_Google_API {
 		);
 	}
 
+
+	/** Preserve stored review aliases and links while removing retired connection secrets. */
+	public function retire_sample_connection() {
+		$locations = $this->get_locations();
+		foreach ( $locations as $id => &$location ) {
+			$location['legacy_keys'] = array_values( array_unique( array_merge( (array) $location['legacy_keys'], $this->legacy_keys( $location ) ) ) );
+			if ( 'place' === $location['mode'] || 'business' === $location['mode'] ) { $location['mode'] = 'all'; }
+			unset( $location['maps_api_key_enc'], $location['rolling_collection'], $location['last_sync'] );
+		}
+		unset( $location );
+		update_option( 'cgr_locations', $locations, false );
+		$settings = get_option( 'cgr_settings', array() );
+		if ( ! is_array( $settings ) ) { $settings = array(); }
+		if ( isset( $settings['mode'] ) && in_array( $settings['mode'], array( 'place', 'business' ), true ) ) { $settings['mode'] = 'all'; }
+		unset( $settings['maps_api_key_enc'], $settings['rolling_collection'], $settings['last_sync'] );
+		update_option( 'cgr_settings', $settings, false );
+	}
+
 	public function get_settings() {
 		$defaults = array(
-			'mode'                 => 'place',
+			'mode'                 => 'all',
 			'place_id'             => '',
-			'maps_api_key_enc'     => '',
 			'location_title'       => '',
 			'location_maps_uri'    => '',
 			'average_rating'       => '',
 			'total_reviews'        => '',
-			'last_sync'            => '',
 			'last_error'           => '',
-			'rolling_collection'   => 'yes',
 			'review_request_url'    => '',
 			'outscraper_query'     => '',
 			'outscraper_api_key_enc' => '',
@@ -153,11 +165,6 @@ final class CGR_Google_API {
 		return $keys;
 	}
 
-	public function get_maps_api_key( $location_id = '' ) {
-		$settings = $this->get_location_settings( $location_id );
-		return CGR_Crypto::decrypt( $settings['maps_api_key_enc'] );
-	}
-
 	public function get_outscraper_api_key( $location_id = '' ) {
 		$settings = $this->get_location_settings( $location_id );
 		return CGR_Crypto::decrypt( $settings['outscraper_api_key_enc'] );
@@ -168,32 +175,11 @@ final class CGR_Google_API {
 		if ( ! empty( $settings['review_request_url'] ) ) {
 			return esc_url_raw( $settings['review_request_url'] );
 		}
-		if ( empty( $settings['place_id'] ) ) {
+		$place_id = ! empty( $settings['outscraper_query'] ) ? $settings['outscraper_query'] : $settings['place_id'];
+		if ( empty( $place_id ) ) {
 			return '';
 		}
-		return add_query_arg( 'placeid', $settings['place_id'], 'https://search.google.com/local/writereview' );
-	}
-
-	public function fetch_place( $location_id = '' ) {
-		$settings = $this->get_location_settings( $location_id );
-		$api_key  = $this->get_maps_api_key( $settings['id'] );
-		if ( '' === $settings['place_id'] || '' === $api_key ) {
-			return new WP_Error( 'cgr_place_settings_missing', __( 'Enter both a Google Place ID and Google Places API key.', 'calico-google-reviews' ) );
-		}
-
-		$url      = 'https://places.googleapis.com/v1/places/' . rawurlencode( $settings['place_id'] ) . '?languageCode=' . rawurlencode( get_locale() );
-		$response = wp_remote_get(
-			$url,
-			array(
-				'timeout' => 20,
-				'headers' => array(
-					'X-Goog-Api-Key'   => $api_key,
-					'X-Goog-FieldMask' => 'id,displayName,rating,userRatingCount,googleMapsUri,reviews',
-				),
-			)
-		);
-
-		return $this->decode_response( $response );
+		return add_query_arg( 'placeid', $place_id, 'https://search.google.com/local/writereview' );
 	}
 
 	public function fetch_outscraper_reviews( $location_id = '' ) {
@@ -215,50 +201,48 @@ final class CGR_Google_API {
 				'reviewsLimit' => $allowed_limit,
 				'sort'         => 'newest',
 				'source'       => 'google',
-				'async'        => 'false',
+				'async'        => 'true',
 			),
 			'https://api.outscraper.com/google-maps-reviews'
 		);
 		$response = wp_remote_get(
 			$url,
 			array(
-				'timeout' => 120,
+				'timeout' => 25,
+				'redirection' => 0,
 				'headers' => array( 'X-API-KEY' => $key ),
 			)
 		);
-		if ( is_wp_error( $response ) ) {
-			return $response;
-		}
-		$status = wp_remote_retrieve_response_code( $response );
-		$data   = json_decode( wp_remote_retrieve_body( $response ), true );
-		if ( 200 !== $status || ! is_array( $data ) ) {
-			$message = isset( $data['errorMessage'] ) ? $data['errorMessage'] : sprintf( __( 'Outscraper API returned HTTP %d.', 'calico-google-reviews' ), $status );
-			return new WP_Error( 'cgr_outscraper_error', sanitize_text_field( $message ) );
-		}
-		if ( isset( $data['status'] ) && 'Success' !== $data['status'] ) {
-			return new WP_Error( 'cgr_outscraper_pending', __( 'Outscraper API did not complete the request synchronously. Try a smaller review limit.', 'calico-google-reviews' ) );
-		}
-		return isset( $data['data'] ) && is_array( $data['data'] ) ? $data['data'] : array();
+		return $this->decode_outscraper_job( $response );
 	}
 
-	private function decode_response( $response ) {
-		if ( is_wp_error( $response ) ) {
-			return $response;
-		}
+	/** Fetch only an existing job; never reserves another scrape or follows a provider-supplied URL. */
+	public function fetch_outscraper_result( $request_id, $location_id ) {
+		$permission = CGR_Credential_Policy::can_request();
+		if ( is_wp_error( $permission ) ) { return $permission; }
+		$key = $this->get_outscraper_api_key( $location_id );
+		if ( ! $key ) { return new WP_Error( 'cgr_missing_key', __( 'Re-enter the Outscraper API key to retrieve this request.', 'calico-google-reviews' ) ); }
+		if ( ! preg_match( '/^[a-zA-Z0-9_-]{1,160}$/D', $request_id ) ) { return new WP_Error( 'cgr_invalid_job_id', __( 'Invalid Outscraper request ID.', 'calico-google-reviews' ) ); }
+		return $this->decode_outscraper_job( wp_remote_get( 'https://api.outscraper.com/requests/' . rawurlencode( $request_id ), array( 'timeout' => 20, 'redirection' => 0, 'headers' => array( 'X-API-KEY' => $key ) ) ), $request_id );
+	}
 
-		$status = wp_remote_retrieve_response_code( $response );
-		$body   = wp_remote_retrieve_body( $response );
-		$data   = json_decode( $body, true );
-		if ( $status < 200 || $status >= 300 ) {
-			$message = isset( $data['error']['message'] ) ? $data['error']['message'] : sprintf( __( 'Google returned HTTP %d.', 'calico-google-reviews' ), $status );
-			return new WP_Error( 'cgr_google_api_error', sanitize_text_field( $message ), array( 'status' => $status ) );
+	private function decode_outscraper_job( $response, $request_id = '' ) {
+		if ( is_wp_error( $response ) ) { return $response; }
+		$http = wp_remote_retrieve_response_code( $response );
+		$data = json_decode( wp_remote_retrieve_body( $response ), true );
+		if ( 204 === $http || ( is_array( $data ) && isset( $data['status'] ) && in_array( strtolower( $data['status'] ), array( 'failure', 'failed', 'error' ), true ) ) ) {
+			return new WP_Error( 'cgr_job_failed', __( 'Outscraper reports that this request failed.', 'calico-google-reviews' ) );
 		}
-
-		if ( ! is_array( $data ) ) {
-			return new WP_Error( 'cgr_invalid_google_response', __( 'Google returned an invalid response.', 'calico-google-reviews' ) );
+		if ( ! in_array( $http, array( 200, 202 ), true ) || ! is_array( $data ) ) {
+			return new WP_Error( $http >= 400 && $http < 500 ? 'cgr_job_rejected' : 'cgr_job_response', sprintf( __( 'Outscraper API returned HTTP %d or an unreadable response.', 'calico-google-reviews' ), $http ) );
 		}
-
-		return $data;
+		$id = isset( $data['id'] ) && is_string( $data['id'] ) ? $data['id'] : $request_id;
+		if ( $id && ! preg_match( '/^[a-zA-Z0-9_-]{1,160}$/D', $id ) ) { return new WP_Error( 'cgr_job_response', __( 'Outscraper returned an invalid request ID.', 'calico-google-reviews' ) ); }
+		if ( $request_id && $id !== $request_id ) { return new WP_Error( 'cgr_job_response', __( 'Outscraper returned a different request ID.', 'calico-google-reviews' ) ); }
+		$status = isset( $data['status'] ) ? strtolower( (string) $data['status'] ) : '';
+		if ( 'success' === $status && isset( $data['data'] ) && is_array( $data['data'] ) ) { return array( 'id' => $id, 'status' => 'success', 'data' => $data['data'] ); }
+		if ( $id && in_array( $status, array( 'pending', 'running', 'processing', 'queued' ), true ) ) { return array( 'id' => $id, 'status' => 'pending' ); }
+		return new WP_Error( 'cgr_job_response', __( 'Outscraper did not return a usable request ID or completed data.', 'calico-google-reviews' ) );
 	}
 
 }
