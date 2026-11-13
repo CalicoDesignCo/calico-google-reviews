@@ -241,15 +241,15 @@ cgr_test_assert( false !== strpos( $frontend_css, '.cgr-read-more summary:hover 
 
 $admin_source = file_get_contents( '/plugin/includes/class-cgr-admin.php' );
 cgr_test_assert( false !== strpos( $admin_source, "__( 'Manual Import'" ), 'Manual Import tab label is missing.' );
-cgr_test_assert( false !== strpos( $admin_source, 'cgr-instructions-places' ) && false !== strpos( $admin_source, 'cgr-instructions-outscraper' ), 'Linked source instruction anchors are missing.' );
+cgr_test_assert( false !== strpos( $admin_source, 'cgr-instructions-outscraper' ), 'Linked source instruction anchor is missing.' );
 cgr_test_assert( false === strpos( $admin_source, 'cgr-instructions-business' ) && false === strpos( $admin_source, 'Business Profile OAuth' ), 'Removed Business Profile connection is still present.' );
 cgr_test_assert( false === strpos( $admin_source, 'exact business search' ) && false === strpos( $admin_source, 'maps.app.goo.gl' ) && false === strpos( $admin_source, 'Outscraper Google Maps Reviews API documentation' ), 'Removed Outscraper guidance is still present.' );
-cgr_test_assert( false !== strpos( $admin_source, 'Limit 5 initial reviews, good for testing environments, no backlog review pulling.' ), 'Google Places API source description is missing.' );
+cgr_test_assert( false === strpos( $admin_source, 'Google Places API' ), 'Removed provider is still visible.' );
 cgr_test_assert( false !== strpos( $admin_source, '500 free credits per month available (pull 1 review = 1 credit), so most accounts will pay nothing.' ), 'Outscraper API credit description is missing.' );
 cgr_test_assert( false !== strpos( $admin_source, 'Set to weekly to avoid charges and stay under the 500-credit limit.' ), 'Outscraper API credit warning is missing.' );
-cgr_test_assert( false !== strpos( $admin_source, 'Google Places API' ) && false !== strpos( $admin_source, 'Outscraper API' ), 'Updated API names are missing.' );
+cgr_test_assert( false !== strpos( $admin_source, 'Outscraper API' ), 'Outscraper connection is missing.' );
 cgr_test_assert( false !== strpos( $admin_source, 'cgr-review-request-link' ) && false !== strpos( $admin_source, 'Copy Link' ) && false !== strpos( $admin_source, 'Test Link' ), 'Review-request link controls are missing.' );
-cgr_test_assert( false !== strpos( $admin_source, 'Store newly exposed reviews every seven days' ), 'Seven-day collection label is missing.' );
+cgr_test_assert( ! has_action( 'admin_post_cgr_sync_place' ) && ! has_action( 'admin_post_cgr_test_place' ), 'Retired API actions are registered.' );
 cgr_test_assert( false !== strpos( $admin_source, 'Export all reviews' ) && has_action( 'admin_post_cgr_export_reviews' ), 'Export All Reviews is not registered.' );
 cgr_test_assert( false !== strpos( $admin_source, 'Hourly — high API usage and potential cost' ), 'Outscraper schedule usage warnings are missing.' );
 cgr_test_assert( false !== strpos( $admin_source, 'cgr_add_location' ) && false !== strpos( $admin_source, 'cgr_delete_location' ) && false !== strpos( $admin_source, 'Multiple business locations' ), 'Multi-location administration or instructions are missing.' );
